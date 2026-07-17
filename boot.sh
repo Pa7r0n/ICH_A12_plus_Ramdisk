@@ -75,7 +75,10 @@ wait_recovery() {
     return 0
 }
 
+nr_banner "boot $NR_VERSION"
 echo "Booting: $BOOTCHAIN_NAME"
+echo "  new_ramdisk $NR_VERSION by $NR_AUTHOR"
+echo "  Telegram: $NR_TELEGRAM"
 if [[ -f "$BOOTCHAIN/chain.info" ]]; then
     sed 's/^/  /' "$BOOTCHAIN/chain.info"
 fi
@@ -150,3 +153,4 @@ echo
 echo "If the logo / verbose boot looks healthy, SSH in a few seconds:"
 echo "  ./ssh.sh"
 echo "password: alpine"
+nr_footer

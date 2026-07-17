@@ -7,6 +7,8 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=env.sh
 source "$ROOT/env.sh"
 
+nr_banner "ssh $NR_VERSION"
+
 IPROXY="$NR_TOOLS/iproxy"
 SSHPASS="$NR_TOOLS/sshpass"
 

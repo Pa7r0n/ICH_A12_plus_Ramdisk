@@ -14,6 +14,8 @@ source "$ROOT/env.sh"
 # shellcheck source=scripts/devices.sh
 source "$ROOT/scripts/devices.sh"
 
+nr_banner "build"
+
 IRECOVERY="$NR_TOOLS/irecovery"
 PZB="$NR_TOOLS/pzb"
 IMG4="$NR_TOOLS/img4"
@@ -548,6 +550,8 @@ cp "$OUT/iBoot.patched.bin" "$BOOTCHAIN/iBoot.patched.bin"
     echo "packaging=img4-with-im4m"
     echo "trustcache=restore-append"
     echo "source=new_ramdisk"
+    echo "nr_version=$NR_VERSION"
+    echo "author=$NR_AUTHOR"
 } > "$BOOTCHAIN/chain.info"
 
 if ((LIVE_DATA)); then
@@ -570,10 +574,16 @@ else
 fi
 "${PREFLIGHT[@]}"
 
+# Drop scratch after a successful build (bootchain + cache kept).
+rm -rf "$WORK" "$OUT" "$NR_WORK/sshtar" "$NR_WORK/trustcache.bin"
+rmdir "$NR_WORK" 2>/dev/null || true
+echo "cleaned work/ scratch"
+
 printf '%s\n' "$BOOTCHAIN_NAME" > "$NR_LAST_BOOTCHAIN_FILE"
 
 echo
 echo "Built: $BOOTCHAIN"
+echo "new_ramdisk $NR_VERSION by $NR_AUTHOR"
 echo "Packaging: IMG4+IM4M | trustcache: RestoreTrustCache + append"
 echo "Chain: use-ibss=$USE_IBSS iBEC=1 SPTM=$HAS_SPTM TXM=$HAS_TXM kernel=$KERNEL_MODE with-fw=$WITH_FW"
 echo "Boot:  ./boot.sh"
@@ -583,3 +593,4 @@ fi
 echo "SSH:   ./ssh.sh"
 echo "After SSH: mount_filesystems              # System/Preboot/xART"
 echo "           mount_filesystems --live-data  # Data; needs SEP keys (usually fails on iOS 17+)"
+nr_footer

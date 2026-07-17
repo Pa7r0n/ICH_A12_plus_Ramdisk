@@ -10,6 +10,8 @@ source "$ROOT/scripts/devices.sh"
 
 IRECOVERY="$NR_TOOLS/irecovery"
 
+nr_banner "status $NR_VERSION"
+
 echo "=== USB / irecovery ==="
 if DEVICE_INFO="$("$IRECOVERY" -q 2>/dev/null)"; then
     echo "$DEVICE_INFO" | sed 's/^/  /'

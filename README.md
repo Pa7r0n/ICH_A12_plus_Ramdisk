@@ -1,6 +1,8 @@
-# new_ramdisk
+# new_ramdisk `v1.Zero`
 
 **SSH ramdisk for A12 / A13** — build and boot a restore-style ramdisk for supported iOS versions after entering pwned DFU with [usbliter8](https://github.com/prdgmshift/usbliter8).
+
+Made by **[@Official_I_C_H](https://t.me/Official_I_C_H)** · Telegram: [t.me/Official_I_C_H](https://t.me/Official_I_C_H)
 
 Not a jailbreak. No PongoOS / jbinit. Research tooling for devices you own.
 
@@ -133,8 +135,14 @@ new_ramdisk/
   resources/      # ssh.tar.gz, IM4M_*, mount_filesystems.safe
   tools/darwin/   # host binaries + libusb
   bootchain/      # build output (gitignored)
-  cache/ work/    # IPSW cache + scratch (gitignored)
+  cache/          # IPSW download cache (gitignored)
+  work/           # scratch — deleted automatically after a successful build
 ```
+
+## Author
+
+- Telegram: **[@Official_I_C_H](https://t.me/Official_I_C_H)**
+- Version: **v1.Zero** (printed on build / boot / ssh / status banners)
 
 ## Credits
 

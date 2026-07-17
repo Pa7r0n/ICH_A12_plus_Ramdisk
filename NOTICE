@@ -1,4 +1,6 @@
-new_ramdisk — SSH ramdisk for A12 / A13 via usbliter8
+new_ramdisk v1.Zero — SSH ramdisk for A12 / A13 via usbliter8
+
+Author / contact: @Official_I_C_H  (https://t.me/Official_I_C_H)
 
 This project packages and orchestrates third-party research tools.
 It does not claim authorship of the underlying exploits or patchfinders.
