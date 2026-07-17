@@ -1,0 +1,28 @@
+new_ramdisk — SSH ramdisk for A12 / A13 via usbliter8
+
+This project packages and orchestrates third-party research tools.
+It does not claim authorship of the underlying exploits or patchfinders.
+
+Credits:
+
+- Paradigm Shift — usbliter8 BootROM exploit (RP2350)
+  https://github.com/prdgmshift/usbliter8
+- Leeksov — usbliter8ra1n and standalone patchfinders
+  (iboot / sptm / txm / kernel)
+- Duy Tran — TXM policy field research
+- Matthew Pierson / vphone-cli — FirmwarePatcher / ramdisk build reference
+- palera1n / checkra1n — ramdisk / trustcache / SSHRD infrastructure
+- blacktop/ipsw — firmware extraction
+- SSHRD_Script (Nathan / verygenericname) — ssh.tar.gz restore ramdisk payload
+- TrollStore (opa334) — bundled helper binaries in ssh.tar.gz
+
+Host binaries under tools/darwin/ originate from the Spironolactone /
+palera1n-adjacent toolchain (img4, trustcache, pzb, irecovery, usbliter8_boot, libusb).
+
+Mount notes (user / on-device):
+- iOS ≤ 15: NAND mounts (including Data) work in practice
+- iOS 16: not verified yet — please test
+- iOS 17+: System/Preboot/xART OK with safe helper; Data (/mnt2) not unlocked yet
+
+Research / educational use only. You are responsible for compliance with
+applicable law and device ownership.

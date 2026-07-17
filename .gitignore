@@ -1,0 +1,13 @@
+cache/
+work/
+bootchain/
+.last_bootchain
+*.ipsw
+.DS_Store
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.raw
+*.dmg
+!resources/

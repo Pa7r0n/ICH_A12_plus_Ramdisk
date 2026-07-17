@@ -1,0 +1,84 @@
+# Safe volume mounting for the SSH ramdisk.
+#
+# Mount experience so far:
+#   iOS ≤ 15  — System / Preboot / xART / Data work in practice
+#   iOS 16    — not verified yet; please try --live-data and report
+#   iOS 17+   — System / Preboot / xART OK; Data (/mnt2) not unlocked yet
+#
+# On iOS 17+ DFU ramdisks, stock mount_filesystems calling seputil --load can
+# SEP-panic and kill SSH. This helper never calls seputil; --live-data only
+# attempts a plain mount_apfs of Data (usually fails without SEP keys).
+
+set -u
+
+LIVE_DATA=0
+case "${1:-}" in
+    --live-data) LIVE_DATA=1 ;;
+    --system-only|"") ;;
+    *)
+        echo "usage: mount_filesystems [--system-only|--live-data]" >&2
+        exit 64
+        ;;
+esac
+
+echo "=== $(date) mount request: ${1:---system-only} ==="
+
+mkdir -p /mnt1 /mnt2 /mnt6 /mnt7
+APFS_UTIL=/System/Library/Filesystems/apfs.fs/apfs.util
+
+volume_for_role() {
+    wanted=$1
+    for device in /dev/disk1s[1-9] /dev/disk0s1s[1-9]; do
+        [ -e "$device" ] || continue
+        role=$("$APFS_UTIL" -p "$device" 2>/dev/null || true)
+        [ "$role" = "$wanted" ] && {
+            printf '%s\n' "$device"
+            return 0
+        }
+    done
+    return 1
+}
+
+mount_role() {
+    role=$1
+    target=$2
+    device=$(volume_for_role "$role") || {
+        echo "missing APFS $role volume"
+        return 1
+    }
+    echo "mounting $role ($device) at $target"
+    /sbin/mount_apfs "$device" "$target"
+}
+
+mount_role System /mnt1
+mount_role Preboot /mnt6 || true
+mount_role xART /mnt7 || true
+
+if [ "$LIVE_DATA" -eq 0 ]; then
+    echo "System/Preboot/xART complete. Data was intentionally not requested."
+    exit 0
+fi
+
+# --live-data is explicit.  The host-side boot command must also have uploaded
+# the matching sep-firmware.img4; do not call seputil here because that is the
+# operation which panicked the previous ramdisk.
+data_device=$(volume_for_role Data) || {
+    echo "missing APFS Data volume"
+    exit 1
+}
+echo "mounting Data ($data_device) at /mnt2; allowing 20 seconds for SEP keys"
+/sbin/mount_apfs "$data_device" /mnt2 &
+mount_pid=$!
+(
+    /bin/sleep 20
+    /bin/kill -0 "$mount_pid" 2>/dev/null && /bin/kill "$mount_pid"
+) &
+timer_pid=$!
+wait "$mount_pid"
+mount_status=$?
+/bin/kill "$timer_pid" 2>/dev/null || true
+if [ "$mount_status" -ne 0 ]; then
+    echo "Data mount did not complete; matching SEP booted without a usable Data key."
+    exit "$mount_status"
+fi
+echo "Data mount completed."
