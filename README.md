@@ -1,6 +1,6 @@
-# new_ramdisk `v1.Zero`
+# ICH_A12+ Ramdisk `v1.Zero`
 
-**SSH ramdisk for A12 / A13** — build and boot a restore-style ramdisk for supported iOS versions after entering pwned DFU with [usbliter8](https://github.com/prdgmshift/usbliter8).
+**SSH ramdisk for A12 / A13** (`new_ramdisk`) — build and boot a restore-style ramdisk for supported iOS versions after entering pwned DFU with [usbliter8](https://github.com/prdgmshift/usbliter8).
 
 Made by **[@Official_I_C_H](https://t.me/Official_I_C_H)** · Telegram: [t.me/Official_I_C_H](https://t.me/Official_I_C_H)
 
