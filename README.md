@@ -7,6 +7,18 @@ Made by **[@Official_I_C_H](https://t.me/Official_I_C_H)** · [t.me/Official_I_C
 Not a jailbreak. Research use on devices you own.
 
 If this helps you, please ⭐ **star the repo** — thanks.
+## ☕ Buy Me a Coffee
+
+If this project helped you, please consider supporting its development.
+
+### USDT (TRC20)
+
+**Wallet Address**
+`TV3W882uz6n219dDgAntedV9o518Sqk255`
+
+**Network:** TRON (TRC20)
+
+Every contribution helps maintain and improve this project. Thank you! ❤️
 
 ## Enter pwned DFU
 
