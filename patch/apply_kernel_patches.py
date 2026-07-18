@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply named Leeksov kernel-patchfinder subsets without editing that repo."""
+"""Apply Leeksov kernel-patchfinder subsets (usbliter8ra1n matrix)."""
 
 from __future__ import annotations
 
@@ -8,15 +8,24 @@ import importlib.util
 import sys
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parent
 KPF_PATH = ROOT / "kernel_patchfinder.py"
 
-# Names accepted by --kpf-set, mapped to KernelPatchfinder result keys.
+# Named sets → result keys from KernelPatchfinder.find_all()
 SETS = {
     "debugger": ("PE_i_can_has_debugger",),
     "amfi": ("AMFIIsCDHashInTrustCache",),
     "launch": ("launch_constraints_func",),
+}
+
+# usbliter8ra1n README: iOS 17/18/26 → AMFI; iOS 27 → AMFI + TXM-era extras
+PROFILES = {
+    "ios17": ("debugger", "amfi"),
+    "ios18": ("debugger", "amfi"),
+    "ios26": ("debugger", "amfi"),
+    "ios27": ("debugger", "amfi", "launch"),
+    "amfi": ("amfi",),
+    "amfi+debugger": ("debugger", "amfi"),
 }
 
 ALL_KEYS = (
@@ -24,6 +33,9 @@ ALL_KEYS = (
     "AMFIIsCDHashInTrustCache",
     "launch_constraints_func",
 )
+
+# Always required for SSH binaries to execute
+REQUIRED_ALWAYS = {"AMFIIsCDHashInTrustCache"}
 
 
 def load_kpf():
@@ -40,14 +52,23 @@ def parse_kpf_set(value: str) -> set[str]:
     value = value.strip().lower()
     if value in ("all", "*"):
         return set(ALL_KEYS)
-    keys: set[str] = set()
+    if value in PROFILES:
+        keys: set[str] = set()
+        for name in PROFILES[value]:
+            keys.update(SETS[name])
+        return keys
+    keys = set()
     for part in value.replace(",", "+").split("+"):
         part = part.strip()
         if not part:
             continue
+        if part in PROFILES:
+            for name in PROFILES[part]:
+                keys.update(SETS[name])
+            continue
         if part not in SETS:
             raise SystemExit(
-                f"unknown kpf set {part!r}; expected all|"
+                f"unknown kpf set {part!r}; expected all|ios17|ios18|ios26|ios27|"
                 + "|".join(SETS)
                 + "|debugger+amfi|..."
             )
@@ -86,8 +107,13 @@ def main() -> None:
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument(
         "--kpf-set",
-        default="all",
-        help="all | debugger | amfi | launch | debugger+amfi | ...",
+        default="ios18",
+        help="ios17|ios18|ios26|ios27|all|debugger|amfi|launch|debugger+amfi|...",
+    )
+    parser.add_argument(
+        "--allow-missing",
+        action="store_true",
+        help="skip optional targets not found (AMFI is still required)",
     )
     parser.add_argument("-q", "--quiet", action="store_true")
     args = parser.parse_args()
@@ -96,9 +122,21 @@ def main() -> None:
     kpf = load_kpf()
     pf = kpf.KernelPatchfinder(args.input.read_bytes(), verbose=not args.quiet)
     results = pf.find_all()
+
     missing = sorted(key for key in wanted if key not in results)
-    if missing:
-        raise SystemExit(f"kernel patchfinder did not locate: {', '.join(missing)}")
+    hard_missing = [k for k in missing if k in REQUIRED_ALWAYS or not args.allow_missing]
+    soft_missing = [k for k in missing if k not in hard_missing]
+    if hard_missing:
+        raise SystemExit(f"kernel patchfinder did not locate: {', '.join(hard_missing)}")
+    if soft_missing:
+        print(f"note: skipping missing optional targets: {', '.join(soft_missing)}")
+        wanted -= set(soft_missing)
+
+    if "AMFIIsCDHashInTrustCache" not in results:
+        raise SystemExit("AMFIIsCDHashInTrustCache not found — cannot patch for SSH")
+
+    # Always ensure AMFI is applied when present
+    wanted.add("AMFIIsCDHashInTrustCache")
 
     count = apply_subset(pf, results, wanted)
     args.output.write_bytes(bytes(pf.data))

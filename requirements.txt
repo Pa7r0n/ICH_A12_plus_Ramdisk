@@ -1,1 +1,2 @@
 pyimg4>=0.8
+capstone>=5.0

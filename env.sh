@@ -3,7 +3,7 @@
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export NEW_RAMDISK_ROOT="$ROOT"
-export NR_VERSION="v1.Zero"
+export NR_VERSION="v1.1"
 export NR_AUTHOR="@Official_I_C_H"
 export NR_TELEGRAM="https://t.me/Official_I_C_H"
 export NR_TOOLS="$ROOT/tools/darwin"

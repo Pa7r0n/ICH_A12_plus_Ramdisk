@@ -23,7 +23,8 @@ IMAGE4_CALLBACK_RESULT = 0x2C198
 UPDATE_DEVICE_TREE_TRAMPOLINE = 0x2C8DC
 NOP = bytes.fromhex("1f2003d5")
 MOV_X0_ZERO = bytes.fromhex("000080d2")
-MAX_REMOTE_RAMDISK_CONTAINER_BYTES = 210 * 1024 * 1024 + 16 * 1024
+# v1.1: allow expanded RD up to ~280MiB + IMG4 overhead (was 210MiB).
+MAX_REMOTE_RAMDISK_CONTAINER_BYTES = 280 * 1024 * 1024 + 16 * 1024
 
 
 def fail(message: str) -> None:

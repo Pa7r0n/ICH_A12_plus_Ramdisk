@@ -13,6 +13,8 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 source "$ROOT/env.sh"
 # shellcheck source=scripts/devices.sh
 source "$ROOT/scripts/devices.sh"
+# shellcheck source=scripts/ramdisk_expand.sh
+source "$ROOT/scripts/ramdisk_expand.sh"
 
 nr_banner "build"
 
@@ -31,8 +33,10 @@ DRY_RUN=0
 LIST_ONLY=0
 DIRECT_URL=""
 IM4M_OVERRIDE=""
-KERNEL_MODE="stock"
-KPF_SET="all"
+KERNEL_MODE="patched"
+KPF_SET="auto"
+KERNEL_MODE_SET=0
+KPF_SET_SET=0
 INTERACTIVE=0
 
 usage() {
@@ -47,18 +51,20 @@ ipsw.me (or --url), builds an SSH ramdisk, and stages a bootchain under
 ./bootchain/<board>-<ver>-<build>-ramdisk/.
 
 Pwned DFU requires RP2350 + https://github.com/prdgmshift/usbliter8
+Run ./setup.sh once on a new Mac before building.
 
 If neither --version nor --build is given, an interactive firmware picker runs.
 
   --list         list firmwares for the connected device and exit
   --im4m PATH    IM4M / APTicket (default: resources/IM4M_<CPID>)
-  --kernel       stock (default, known-good SSH) | patched (experimental)
+  --kernel       patched (default, usbliter8ra1n AMFI) | stock (fallback)
+  --kpf-set      auto (default) | ios17|ios18|ios26|ios27|debugger+amfi|all
   --with-fw      stage AOP/ANE/AVE/ISP/GFX/SIO (needed on some boards for USB)
-  --use-ibss     stage patched iBSS (default: direct iBEC, proven on XR)
+  --use-ibss     stage patched iBSS (default: direct iBEC)
   --live-data    stage RestoreSEP for an explicit SEP upload experiment
   --dry-run      resolve IPSW + BuildManifest only
 
-Requires: device in DFU with PWND: usbliter8, macOS, python3, ipsw, hdiutil.
+Requires: device in DFU with PWND: usbliter8; deps from ./setup.sh.
 EOF
 }
 
@@ -82,6 +88,7 @@ while (($#)); do
         --kernel)
             (($# >= 2)) || { usage >&2; exit 64; }
             KERNEL_MODE="$2"
+            KERNEL_MODE_SET=1
             case "$KERNEL_MODE" in stock|patched) ;; *)
                 echo "invalid --kernel: $KERNEL_MODE" >&2; exit 64 ;;
             esac
@@ -90,6 +97,7 @@ while (($#)); do
         --kpf-set)
             (($# >= 2)) || { usage >&2; exit 64; }
             KPF_SET="$2"
+            KPF_SET_SET=1
             shift 2
             ;;
         --with-fw) WITH_FW=1; shift ;;
@@ -312,6 +320,32 @@ HAS_TXM=0
 [[ -n "$(manifest_path SPTM)" ]] && HAS_SPTM=1
 [[ -n "$(manifest_path TXM)" ]] && HAS_TXM=1
 
+# Resolve auto kpf-set from Manifest + iOS major (usbliter8ra1n matrix).
+resolve_kpf_set() {
+    local ver="$1" has_txm="$2"
+    local major=""
+    if [[ "$ver" =~ ^([0-9]+) ]]; then
+        major="${BASH_REMATCH[1]}"
+    fi
+    if ((has_txm)) || [[ -n "$major" && "$major" -ge 27 ]]; then
+        echo "ios27"
+    elif [[ -n "$major" && "$major" -ge 26 ]]; then
+        echo "ios26"
+    elif [[ -n "$major" && "$major" -ge 18 ]]; then
+        echo "ios18"
+    elif [[ -n "$major" && "$major" -ge 17 ]]; then
+        echo "ios17"
+    else
+        # unknown / older: AMFI+debugger is the safe SSH baseline
+        echo "ios18"
+    fi
+}
+
+if [[ "$KPF_SET" == "auto" ]]; then
+    KPF_SET="$(resolve_kpf_set "$VERSION" "$HAS_TXM")"
+    echo "kpf-set auto → $KPF_SET (iOS $VERSION, TXM=$HAS_TXM)"
+fi
+
 echo
 echo "=== firmware ==="
 echo "  iOS:      $VERSION ($BUILD)"
@@ -323,6 +357,7 @@ if ((HAS_SPTM || HAS_TXM)); then
 else
     echo "  note:     no SPTM/TXM in Manifest (typical iOS 17/18/26 on A12/A13) — skip those layers"
 fi
+echo "  patches:  iBoot always; kernel=$KERNEL_MODE/$KPF_SET (Leeksov)"
 
 if ((DRY_RUN)); then
     printf 'validated manifest members:\n'
@@ -451,27 +486,14 @@ if ((HAS_TXM)); then
     echo "patched TXM"
 fi
 
-# --- Expand stock RestoreRamDisk, inject SSH ---
-truncate -s 210m "$WORK/ramdisk.dmg"
-attach_out="$(hdiutil attach -nomount -owners off \
-    -imagekey diskimage-class=CRawDiskImage "$WORK/ramdisk.dmg")"
-apfs_disk="$(awk '/EF57347C-0000-11AA-AA11-0030654/{print $1; exit}' <<<"$attach_out")"
-[[ -n "$apfs_disk" ]] || { echo "could not locate APFS container" >&2; exit 1; }
-diskutil apfs resizeContainer "$apfs_disk" 0
-hdiutil detach -force "$apfs_disk"
-hdiutil attach -mountpoint /tmp/NewRamdiskRD -owners off \
-    -imagekey diskimage-class=CRawDiskImage "$WORK/ramdisk.dmg"
+# --- Expand stock RestoreRamDisk, inject SSH (method A/B) ---
 trap 'hdiutil detach -force /tmp/NewRamdiskRD >/dev/null 2>&1 || true' EXIT
-"$GTAR" -x --no-overwrite-dir -f "$NR_RESOURCES/ssh.tar.gz" -C /tmp/NewRamdiskRD/
-# Safe mount_filesystems: stock seputil --load SEP-panics on DFU-boot iOS 17+.
-if [[ -f "$NR_RESOURCES/mount_filesystems.safe" ]]; then
-    cp /tmp/NewRamdiskRD/usr/bin/mount_filesystems \
-        /tmp/NewRamdiskRD/usr/bin/mount_filesystems.stock.panic 2>/dev/null || true
-    cp "$NR_RESOURCES/mount_filesystems.safe" /tmp/NewRamdiskRD/usr/bin/mount_filesystems
-    chmod 755 /tmp/NewRamdiskRD/usr/bin/mount_filesystems
-    echo "installed safe mount_filesystems (no seputil --load)"
-fi
-hdiutil detach -force /tmp/NewRamdiskRD
+nr_expand_inject_ramdisk \
+    "$WORK/ramdisk.dmg" \
+    "$NR_RESOURCES/ssh.tar.gz" \
+    "$NR_RESOURCES/mount_filesystems.safe" \
+    /tmp/NewRamdiskRD \
+    "$GTAR"
 trap - EXIT
 
 # Trustcache: stock RestoreTrustCache + append injected SSH CDHashes.
@@ -523,7 +545,8 @@ wrap_kernel "$WORK/kernelcache.raw" "$BOOTCHAIN/kernelcache.img4.stock"
 python3 "$NR_PATCH/apply_kernel_patches.py" \
     "$WORK/kernelcache.raw" \
     --output "$OUT/kernelcache.patched.raw" \
-    --kpf-set "$KPF_SET"
+    --kpf-set "$KPF_SET" \
+    --allow-missing
 wrap_kernel "$OUT/kernelcache.patched.raw" "$BOOTCHAIN/kernelcache.img4.patched"
 
 if [[ "$KERNEL_MODE" == "patched" ]]; then
