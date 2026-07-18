@@ -16,9 +16,11 @@ UPDATE_DEVICE_TREE_TRAMPOLINE = 0x2C8DC
 NOP = bytes.fromhex("1f2003d5")
 MOV_X0_ZERO = bytes.fromhex("000080d2")
 
-# Leeksov iboot_patchfinder writes this slot; we shrink it to ramdisk args.
+# Leeksov iboot_patchfinder writes this slot (29 bytes incl. NUL).
+# Keep debug=0x2014e for verbose; rd=md0 for ramdisk. Runtime setenvnp
+# in boot.sh still overrides/extends before bootx.
 LEEKSOV_BOOT_ARGS = b"serial=3 -v debug=0x2014e %s\x00"
-RAMDISK_BOOT_ARGS = b"serial=3 -v rd=md0 wdt=-1\x00\x00\x00\x00"
+RAMDISK_BOOT_ARGS = b"rd=md0 -v debug=0x2014e\x00\x00\x00\x00\x00\x00"
 
 
 def apply_boot_args(data: bytearray) -> None:

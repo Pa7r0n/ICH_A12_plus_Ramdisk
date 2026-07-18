@@ -1,6 +1,13 @@
 cache/
 work/
+work_logo/
 bootchain/
+resources/ich_logo.raw
+resources/ich_logo_fullscreen.png
+resources/ich_boot_preview.png
+resources/logo_cache/
+resources/ssh.tar.gz.bak.sshrd
+resources/restored_external.stock
 .last_bootchain
 *.ipsw
 .DS_Store

@@ -494,6 +494,17 @@ nr_expand_inject_ramdisk \
     "$NR_RESOURCES/mount_filesystems.safe" \
     /tmp/NewRamdiskRD \
     "$GTAR"
+# Ensure ICH-branded restored_external (replaces SSHRD_Script splash/tag).
+if [[ -f "$NR_RESOURCES/restored_external" ]]; then
+    hdiutil attach -mountpoint /tmp/NewRamdiskRD -owners off \
+        -imagekey diskimage-class=CRawDiskImage "$WORK/ramdisk.dmg" >/dev/null
+    if [[ -d /tmp/NewRamdiskRD/usr/local/bin ]]; then
+        cp "$NR_RESOURCES/restored_external" /tmp/NewRamdiskRD/usr/local/bin/restored_external
+        chmod 755 /tmp/NewRamdiskRD/usr/local/bin/restored_external
+        echo "installed ICH-branded restored_external (no SSHRD splash)"
+    fi
+    hdiutil detach -force /tmp/NewRamdiskRD >/dev/null 2>&1 || true
+fi
 trap - EXIT
 
 # Trustcache: stock RestoreTrustCache + append injected SSH CDHashes.
