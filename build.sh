@@ -27,7 +27,9 @@ JQ="$NR_TOOLS/jq"
 
 SELECTION=""
 LIVE_DATA=0
-WITH_FW=0
+# Default ON: AOP/ANE/AVE/ISP/GFX/SIO are required for reliable USB on many
+# A12/A13 boards when using a normal Lightning cable (not only DCSD serial).
+WITH_FW=1
 USE_IBSS=0
 DRY_RUN=0
 LIST_ONLY=0
@@ -44,12 +46,13 @@ usage() {
 usage: ./build.sh [--version VERSION|--build BUILD|--url IPSW_URL]
                   [--list] [--im4m PATH]
                   [--kernel stock|patched] [--kpf-set SET]
-                  [--with-fw] [--use-ibss] [--live-data] [--dry-run]
+                  [--with-fw|--no-fw] [--use-ibss] [--live-data] [--dry-run]
 
 Detects the connected pwned DFU A12/A13 device, resolves firmware from
 ipsw.me (or --url), builds an SSH ramdisk, and stages a bootchain under
 ./bootchain/<board>-<ver>-<build>-ramdisk/.
 
+Targets: A12 (0x8020) / A13 (0x8030) — any signed iOS version from ipsw.me.
 Pwned DFU requires RP2350 + https://github.com/prdgmshift/usbliter8
 Run ./setup.sh once on a new Mac before building.
 
@@ -58,8 +61,9 @@ If neither --version nor --build is given, an interactive firmware picker runs.
   --list         list firmwares for the connected device and exit
   --im4m PATH    IM4M / APTicket (default: resources/IM4M_<CPID>)
   --kernel       patched (default, usbliter8ra1n AMFI) | stock (fallback)
-  --kpf-set      auto (default) | ios17|ios18|ios26|ios27|debugger+amfi|all
-  --with-fw      stage AOP/ANE/AVE/ISP/GFX/SIO (needed on some boards for USB)
+  --kpf-set      auto (default) | ios15|ios16|ios17|ios18|ios26|ios27|debugger+amfi|all
+  --with-fw      stage AOP/ANE/AVE/ISP/GFX/SIO (default; needed for normal USB)
+  --no-fw        skip coprocessor firmwares (DCSD/serial-only debugging)
   --use-ibss     stage patched iBSS (default: direct iBEC)
   --live-data    stage RestoreSEP for an explicit SEP upload experiment
   --dry-run      resolve IPSW + BuildManifest only
@@ -101,6 +105,7 @@ while (($#)); do
             shift 2
             ;;
         --with-fw) WITH_FW=1; shift ;;
+        --no-fw) WITH_FW=0; shift ;;
         --use-ibss) USE_IBSS=1; shift ;;
         --live-data) LIVE_DATA=1; shift ;;
         --dry-run) DRY_RUN=1; shift ;;
@@ -321,6 +326,7 @@ HAS_TXM=0
 [[ -n "$(manifest_path TXM)" ]] && HAS_TXM=1
 
 # Resolve auto kpf-set from Manifest + iOS major (usbliter8ra1n matrix).
+# Covers A12/A13 across shipped majors; AMFI+debugger is the SSH baseline.
 resolve_kpf_set() {
     local ver="$1" has_txm="$2"
     local major=""
@@ -335,8 +341,12 @@ resolve_kpf_set() {
         echo "ios18"
     elif [[ -n "$major" && "$major" -ge 17 ]]; then
         echo "ios17"
+    elif [[ -n "$major" && "$major" -ge 16 ]]; then
+        echo "ios16"
+    elif [[ -n "$major" && "$major" -ge 15 ]]; then
+        echo "ios15"
     else
-        # unknown / older: AMFI+debugger is the safe SSH baseline
+        # unknown / very old: same AMFI+debugger baseline as modern sets
         echo "ios18"
     fi
 }
@@ -412,13 +422,19 @@ fi
 ((HAS_SPTM)) && fetch_member "$(manifest_path SPTM)" >/dev/null
 ((HAS_TXM)) && fetch_member "$(manifest_path TXM)" >/dev/null
 if ((WITH_FW)); then
+    FW_STAGED=0
     for key in AOP ANE AVE ISP GFX SIO; do
-        [[ -n "$(manifest_path "$key")" ]] || {
-            echo "BuildManifest missing $key (required by --with-fw)" >&2
-            exit 1
-        }
+        if [[ -z "$(manifest_path "$key")" ]]; then
+            echo "warning: BuildManifest has no $key — skip (common on some boards/iOS)" >&2
+            continue
+        fi
         fetch_member "$(manifest_path "$key")" >/dev/null
+        FW_STAGED=1
     done
+    if ((FW_STAGED == 0)); then
+        echo "warning: no coprocessor firmwares in Manifest — continuing without with-fw" >&2
+        WITH_FW=0
+    fi
 fi
 if ((LIVE_DATA)); then
     [[ -n "$(manifest_path RestoreSEP)" ]] || {
@@ -443,6 +459,7 @@ done
 ((HAS_TXM)) && cp "$CACHE/$(basename "$(manifest_path TXM)")" "$WORK/TXM.im4p"
 if ((WITH_FW)); then
     for key in AOP ANE AVE ISP GFX SIO; do
+        [[ -n "$(manifest_path "$key")" ]] || continue
         cp "$CACHE/$(basename "$(manifest_path "$key")")" "$WORK/$key.im4p"
     done
 fi
@@ -528,6 +545,7 @@ echo "built trustcache via RestoreTrustCache + append"
 
 if ((WITH_FW)); then
     for component in AOP ANE AVE ISP GFX SIO; do
+        [[ -f "$WORK/$component.im4p" ]] || continue
         "$IMG4" -i "$WORK/$component.im4p" -o "$BOOTCHAIN/$component.img4" -M "$IM4M"
     done
     printf '1\n' > "$BOOTCHAIN/with-fw.enabled"

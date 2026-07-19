@@ -18,8 +18,10 @@ SETS = {
     "launch": ("launch_constraints_func",),
 }
 
-# usbliter8ra1n README: iOS 17/18/26 → AMFI; iOS 27 → AMFI + TXM-era extras
+# usbliter8ra1n README: iOS 15–18/26 → AMFI; iOS 27 → AMFI + TXM-era extras
 PROFILES = {
+    "ios15": ("debugger", "amfi"),
+    "ios16": ("debugger", "amfi"),
     "ios17": ("debugger", "amfi"),
     "ios18": ("debugger", "amfi"),
     "ios26": ("debugger", "amfi"),
@@ -68,7 +70,7 @@ def parse_kpf_set(value: str) -> set[str]:
             continue
         if part not in SETS:
             raise SystemExit(
-                f"unknown kpf set {part!r}; expected all|ios17|ios18|ios26|ios27|"
+                f"unknown kpf set {part!r}; expected all|ios15|ios16|ios17|ios18|ios26|ios27|"
                 + "|".join(SETS)
                 + "|debugger+amfi|..."
             )

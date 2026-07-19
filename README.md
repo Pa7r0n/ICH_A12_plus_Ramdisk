@@ -23,13 +23,15 @@ Every contribution helps maintain and improve this project. Thank you! ❤️
 ## Enter pwned DFU
 
 1. DFU mode + **RP2350** + [usbliter8](https://github.com/prdgmshift/usbliter8)  
-2. Cable to Mac  
+2. Cable to Mac (prefer **USB-A → Lightning**; USB-C adapters are flaky)  
 3. Confirm:
 
 ```bash
 ./tools/darwin/irecovery -q
 # MODE: DFU   PWND: usbliter8
 ```
+
+DCSD/serial cables are fine for verbose UART, but **normal USB must reappear as Recovery** after iBoot. `./boot.sh` waits for that USB Recovery mode (and will prompt to unplug/replug if needed).
 
 ## Setup
 
@@ -42,11 +44,13 @@ Every contribution helps maintain and improve this project. Thank you! ❤️
 
 ```bash
 ./status.sh
-./build.sh --with-fw
+./build.sh                 # --with-fw is default (needed for normal USB)
 ./boot.sh
 ./ssh.sh
 # password: alpine
 ```
+
+Works for **A12 / A13** and any signed iOS version listed by `./build.sh --list` (ipsw.me).
 
 `./ssh.sh` mounts System/Preboot/xART and prints the device iOS version from Preboot when available.
 
@@ -54,11 +58,14 @@ Useful flags:
 
 ```bash
 ./build.sh --list
-./build.sh --version 18.7.9 --with-fw
+./build.sh --version 18.7.9
+./build.sh --no-fw          # skip USB firmwares (not recommended)
 ./build.sh --kernel stock
 ./boot.sh --no-logo
 ./boot.sh --no-fw
 ```
+
+If `./boot.sh` stops after “Boot triggered” / iBoot send: unplug and replug once when prompted, use a USB-A cable, and rebuild without `--no-fw`.
 
 ## Boot
 

@@ -105,6 +105,8 @@ if ((FAIL)); then
 fi
 echo "Setup complete. Next:"
 echo "  1) Pwn DFU with RP2350 + usbliter8"
-echo "  2) ./build.sh --with-fw"
+echo "  2) ./build.sh          # --with-fw default (normal USB)"
+echo "  3) ./boot.sh           # waits for USB Recovery after iBoot"
+echo "  4) ./ssh.sh"
 echo "  3) ./boot.sh && ./ssh.sh"
 nr_footer
