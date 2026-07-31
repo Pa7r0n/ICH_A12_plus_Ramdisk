@@ -55,7 +55,7 @@ jobs:
           source .gha-venv/bin/activate
           set -x
           if [ -n "${{ github.event.inputs.ipsw_url }}" ]; then
-            ./build.sh ipsw --dry-run --url "${{ github.event.inputs.ipsw_url }}" --kpf-set "${{ github.event.inputs.kpf_set }}"
+            ./build.sh --url  "${{ github.event.inputs.ipsw_url }}" --dry-run --kpf-set "${{ github.event.inputs.kpf_set }}"
           else
             ./build.sh --dry-run --kpf-set "${{ github.event.inputs.kpf_set }}"
           fi
