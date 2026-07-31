@@ -63,7 +63,7 @@ BASH
         shell: bash -l {0}
         env:
           NR_TOOLS: ${{ github.workspace }}/tools/darwin
-        PATH: ${{ github.workspace }}/.gha-tools:$PATH
+          PATH: ${{ github.workspace }}/.gha-tools:$PATH
         run: |
           source .gha-venv/bin/activate
           set -x
