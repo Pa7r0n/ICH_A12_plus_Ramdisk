@@ -1,5 +1,6 @@
 name: Build ICH bootchain (macOS)
 
+# Allow manual runs and runs from pushes to main and add-macos-build-workflow
 on:
   workflow_dispatch:
     inputs:
@@ -10,6 +11,10 @@ on:
         description: 'kpf-set (auto|ios18|...)'
         required: false
         default: auto
+  push:
+    branches:
+      - main
+      - add-macos-build-workflow
 
 jobs:
   build:
