@@ -47,6 +47,18 @@ jobs:
           pip install -r requirements.txt || true
           pip install pyimg4 lzfse pycryptodome || true
 
+          # Provide a minimal ipsw shim so build.sh's 'require ipsw' check passes on CI.
+          # This is a no-op shim intended for dry-run CI usage only.
+          mkdir -p .gha-tools
+          cat > .gha-tools/ipsw <<'BASH'
+#!/usr/bin/env bash
+# ipsw shim for CI: no-op. build.sh only checks for presence of this command.
+exit 0
+BASH
+          chmod +x .gha-tools/ipsw
+          # Add shim directory to PATH for the rest of the job
+          echo "${{ github.workspace }}/.gha-tools" >> $GITHUB_PATH
+
       - name: Run build (dry-run)
         shell: bash -l {0}
         env:
@@ -55,7 +67,7 @@ jobs:
           source .gha-venv/bin/activate
           set -x
           if [ -n "${{ github.event.inputs.ipsw_url }}" ]; then
-            ./build.sh --url  "${{ github.event.inputs.ipsw_url }}" --dry-run --kpf-set "${{ github.event.inputs.kpf_set }}"
+            ./build.sh --url "${{ github.event.inputs.ipsw_url }}" --dry-run --kpf-set "${{ github.event.inputs.kpf_set }}"
           else
             ./build.sh --dry-run --kpf-set "${{ github.event.inputs.kpf_set }}"
           fi
