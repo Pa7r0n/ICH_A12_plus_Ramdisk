@@ -1,1 +1,59 @@
-# (paste same YAML content as in Option 1 here)
+name: Build ICH bootchain (macOS)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ipsw_url:
+        description: 'Direct IPSW URL (optional)'
+        required: false
+      kpf_set:
+        description: 'kpf-set (auto|ios18|...)'
+        required: false
+        default: auto
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Make scripts executable
+        run: |
+          chmod +x ./setup.sh ./build.sh ./boot.sh || true
+
+      - name: Setup Python & install deps
+        shell: bash -l {0}
+        run: |
+          python3 -m venv .gha-venv
+          source .gha-venv/bin/activate
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt || true
+          pip install pyimg4 lzfse pycryptodome || true
+
+      - name: Run build (dry-run)
+        shell: bash -l {0}
+        env:
+          NR_TOOLS: ${{ github.workspace }}/tools/darwin
+        run: |
+          source .gha-venv/bin/activate
+          set -x
+          if [ -n "${{ github.event.inputs.ipsw_url }}" ]; then
+            ./build.sh --dry-run --url "${{ github.event.inputs.ipsw_url }}" --kpf-set "${{ github.event.inputs.kpf_set }}"
+          else
+            ./build.sh --dry-run --kpf-set "${{ github.event.inputs.kpf_set }}"
+          fi
+
+      - name: Upload bootchain artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ich-bootchain
+          path: |
+            bootchain/
+            NR_WORK/out-*/
+          retention-days: 7
